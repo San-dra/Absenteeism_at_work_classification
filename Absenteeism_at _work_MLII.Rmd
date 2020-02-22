@@ -21,6 +21,7 @@ library(FSelector)
 library(dplyr)
 library(knitr)
 library(magrittr)
+library(lattice)
 ```
 
 #Introduction
@@ -28,25 +29,27 @@ library(magrittr)
 
 #Loading Data
 
+The dataframe contains **22** variables.The target variable is **Absenteeism**, a logical variable setting categorizing whether an individual is going to be absent more than 5 hours in total.
+
 ```{r Loading Training}
-getwd()
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) 
 
 abs_training_df<-read.csv("Absenteeism_at_work_classification_training.csv",sep = ";")
-data.frame(variable = names(abs_training_df),
-           classe = sapply(abs_training_df, typeof),
-           first_values = sapply(abs_training_df, function(x) paste0(head(x),  collapse = ", ")),
-           row.names = NULL) %>% kable()
+ncol(abs_training_df)
+```
 
+
+```{r Variables}
+data.frame(Variable = names(abs_training_df),
+           Class = sapply(abs_training_df, typeof),
+           First_values = sapply(abs_training_df, function(x) paste0(head(x),  collapse = ", ")),
+           row.names = NULL) %>% kable()
 
 ```
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r cars}
-summary(cars)
+
 ```
 
 ## Including Plots
@@ -54,7 +57,7 @@ summary(cars)
 You can also embed plots, for example:
 
 ```{r pressure, echo=FALSE}
-plot(pressure)
+
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
