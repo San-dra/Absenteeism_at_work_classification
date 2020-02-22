@@ -26,9 +26,9 @@ library(skimr)
 ```
 
 #Introduction
+The main goal is to **predict whether or not an individual is going to have a long absence** (`Absenteeism` variable) it's therefore a binary classification problem.
 
-
-#Loading Data
+#Data Loading and Overview
 
 The dataframe contains **22** variables.The target variable is **Absenteeism**, a logical variable setting categorizing whether an individual is going to be absent more than 5 hours in total.
 
@@ -38,7 +38,7 @@ abs_training_df<-read.csv("Absenteeism_at_work_classification_training.csv",sep 
 ncol(abs_training_df)
 ```
 
-
+##Variable Type
 ```{r Variables}
 data.frame(Variable = names(abs_training_df),
            Class = sapply(abs_training_df, typeof),
@@ -47,7 +47,7 @@ data.frame(Variable = names(abs_training_df),
 ```
 
 
-
+##Data Summary
 ```{r Statistical Summary}
 stat_abs_training_df <- do.call(data.frame, 
                 list(mean = apply(abs_training_df, 2, mean),
@@ -64,12 +64,22 @@ kable(stat_abs_training_df[,21:22])
 
 ```
 
-# View Data Distribution
+## View Data Distribution
 ```{r}
 skim(abs_training_df)
 ```
+# Outlier Detection
 
-You can also embed plots, for example:
+```{r}
+
+```
+
+
+
+#Data Cleaning and Preparation
+From the data overview we can identify there target variable is sufficiently balanced in training set with 63% False and 47% True. We also dont have any missing values.
+
+##Changing Data Type
 
 ```{r pressure, echo=FALSE}
 
