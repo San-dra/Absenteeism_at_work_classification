@@ -87,7 +87,7 @@ str(abs_dataset)
 ```
 
 To make attributes more discriptive we will add the actual category names of variables **Education**, **Seasons**, and **Reason for Absence**. 
-```{r}
+```{r Making Categorical Variables Discriptive}
 abs_dataset$Reason.for.absence <- recode(abs_dataset$Reason.for.absence, 
                                      '0'='Infectious parasitic diseases',
                                      '1'='Neoplasms',
@@ -121,7 +121,73 @@ abs_dataset$Reason.for.absence <- recode(abs_dataset$Reason.for.absence,
 abs_dataset$Seasons =recode(abs_dataset$Seasons,'1'='summer','2'='autumn','3'='winter','4'='spring')
 
 abs_dataset$Education =recode(abs_dataset$Education, '1'='highschool','2'='graduate','3'='postgraduate','4'='master&PhD')
+
+#Check dataset again
+str(abs_dataset$Seasons)
+str(abs_dataset$Education)
+str(abs_dataset$Reason.for.absence)
+str(abs_dataset$Absenteeism)
+```
+The target variable already has One Hot Encoding and we dont need to make further changes to it. 
+
+We are now done with changing variable types, and we can update our training and test dataset according to these changes and have them separetly for the net steps. 
+```{r Making Train and Test Separate Again}
+abs_training_df<-abs_dataset[1:593,]
+abs_test_df<-abs_dataset[594:740,]
+abs_test_df$Absenteeism<-NULL  #Removing the target Variable
 ```
 
+## Check for Duplicate Observations
+Our unique identifier in the dataset is the **ID** variable and we can use that to see if we have variables that have been duplicated. 
+```{r Duplicates}
+print(paste0("The total number of duplicates in our dataframe is: ", sum(duplicated(abs_training_df$ID))))
+```
+
+## Outlier Detection
+
+We need to further prepare out dataset by checking for outliers in the numerical variables and identify if it is an error or an actual observation and decide how to move forward with these observations. 
+```{r Boxplot}
+par(mfrow=c(1,5))
+boxplot(abs_training_df$Transportation.expense,
+main = "Transp. Expense",
+xlab = "Cost",
+ylab = "Amount",
+col = "orange",
+border = "brown",
+horizontal = FALSE,
+notch = TRUE
+)
+boxplot(abs_training_df$Distance.from.Residence.to.Work,
+main = "Dist. Resi.-Work",
+xlab = "Distance",
+ylab = "KMs",
+col = "orange",
+border = "brown",
+horizontal = FALSE,
+notch = TRUE
+)
+boxplot(abs_training_df$Service.time,
+main = "Service Time",
+xlab = "Serv. Time",
+ylab = "Years",
+col = "orange",
+border = "brown",
+horizontal = FALSE,
+notch = TRUE
+)
+boxplot(abs_training_df$Age,
+main = "Age",
+xlab = "Age",
+ylab = "Years",
+col = "orange",
+border = "brown",
+horizontal = FALSE,
+notch = TRUE
+)
+
+```
+
+
+# Correlation
 
 
