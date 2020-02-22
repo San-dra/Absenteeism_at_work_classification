@@ -13,11 +13,31 @@ library(ISLR)
 library(rpart)
 library(rpart.plot)
 library(randomForest)
+library(ggplot2)
+library(e1071)     
+library(glmnet)
+library(caret)     
+library(FSelector)
+library(dplyr)
+library(knitr)
+library(magrittr)
 ```
 
-## R Markdown
+#Introduction
 
-```{r table1, comment=NA, results='asis'}
+
+#Loading Data
+
+```{r Loading Training}
+getwd()
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) 
+
+abs_training_df<-read.csv("Absenteeism_at_work_classification_training.csv",sep = ";")
+data.frame(variable = names(abs_training_df),
+           classe = sapply(abs_training_df, typeof),
+           first_values = sapply(abs_training_df, function(x) paste0(head(x),  collapse = ", ")),
+           row.names = NULL) %>% kable()
+
 
 ```
 
