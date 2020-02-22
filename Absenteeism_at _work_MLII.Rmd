@@ -2,7 +2,7 @@
 title: "Predicting Absenteeism at work"
 subtitle: "Machine Learning II"
 author: "Sandra Alemayehu & Jessica Hayek"
-date: "2/21/2020"
+date: "21 February 2020"
 output: html_document
 
 ---
@@ -68,18 +68,13 @@ kable(stat_abs_training_df[,21:22])
 ```{r}
 skim(abs_training_df)
 ```
-# Outlier Detection
-
-```{r}
-
-```
-
-
 
 #Data Cleaning and Preparation
 From the data overview we can identify there target variable is sufficiently balanced in training set with 63% False and 47% True. We also dont have any missing values.
+However we do have variable which are codified as numbers which are supposed to be categorical and possible outliers in few variables such as age and transportation cost.
 
 ##Changing Data Type
+ these variables need to converted into factors.
 
 ```{r pressure, echo=FALSE}
 
