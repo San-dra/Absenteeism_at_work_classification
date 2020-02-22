@@ -3,11 +3,22 @@ title: "Predicting Absenteeism at work"
 subtitle: "Machine Learning II"
 author: "Sandra Alemayehu & Jessica Hayek"
 date: "21 February 2020"
-output: html_document
+output:
+  rmarkdown::html_document:
+    code_folding: show
+    df_print: paged
+    fig_caption: yes
+    theme: lumen
+    toc: yes
+    toc_float: yes
 
 ---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
 ```{r, message=FALSE, warning=FALSE, include=FALSE}
+library(prettydoc) #For rmd theme
 library(MASS)
 library(ISLR)
 library(rpart)
@@ -25,10 +36,10 @@ library(lattice)
 library(skimr)
 ```
 
-#Introduction
+# Introduction
 The main goal is to **predict whether or not an individual is going to have a long absence** (`Absenteeism` variable) it's therefore a binary classification problem.
 
-#Data Loading and Overview
+# Data Loading and Overview
 
 
 ```{r Loading Training}
@@ -39,7 +50,7 @@ ncol(abs_training_df)
 abs_test_df = read.csv(file = file.path("C:/Users/sandr/Desktop/Machine Learning II/ML Assignment/Absenteeism_at_work_classification/Absenteeism_at_work_classification_test.csv"),  header = TRUE, dec = ".", sep = ";")
 ```
 
-##Variable Type
+## Variable Type
 ```{r Variables}
 data.frame(Variable = names(abs_training_df),
            Class = sapply(abs_training_df, typeof),
@@ -49,17 +60,17 @@ data.frame(Variable = names(abs_training_df),
 
 The dataframe contains **22** variables.The target variable is **Absenteeism**, a logical variable setting categorizing whether an individual is going to be absent more than 5 hours in total.
 
-##Data overview
+## Data overview
 
 ```{r Training Dataset Overview, echo=FALSE}
 skim(abs_training_df)
 ```
 
-#Data Cleaning and Preparation
+# Data Cleaning and Preparation
 From the data overview we can identify there target variable is sufficiently balanced in training set with 63% False and 47% True. We also dont have any missing values.
 However we do have variable which are codified as numbers which are supposed to be categorical and possible outliers in few variables such as age and transportation cost.
 
-##Changing Data Type
+## Changing Data Type
 We can see from the attribute information (https://archive.ics.uci.edu/ml/datasets/Absenteeism+at+work) that 11 categorical variables have been codified as number in our dataframe. These variables are: **ID**, **ID.Worker**, **Reason.for.absence**, **Month.of.absence**, **Day.of.the.week**, **Seasons**, **Disciplinary.failure**, **Education**, **Social.drinker**, **Social.smoker**,**Absenteeism** 
 Before converting these these variables need to combine test dataset with train dataset, and apply the conversion on both. 
 
@@ -75,6 +86,42 @@ abs_dataset[categorical_variables] <- lapply(abs_dataset[categorical_variables],
 str(abs_dataset)
 ```
 
-To facilitate the understanding of the feature analysis, I am going to change the name of some of them to their actual meaning (this meaning is in the dataset description file).
+To make attributes more discriptive we will add the actual category names of variables **Education**, **Seasons**, and **Reason for Absence**. 
+```{r}
+abs_dataset$Reason.for.absence <- recode(abs_dataset$Reason.for.absence, 
+                                     '0'='Infectious parasitic diseases',
+                                     '1'='Neoplasms',
+                                     '2'='Diseases of the blood',
+                                     '3'='Endocrine and metabolic diseases',
+                                     '4'='Mental and behavioural disorders',
+                                     '5'='Diseases of the nervous system',
+                                     '6'='Diseases of the eye and adnexa',
+                                     '7'='Diseases of the ear and mastoid process',
+                                     '8'='Diseases of the circulatory system',
+                                     '9'='Diseases of the respiratory system',
+                                     '10'='Diseases of the digestive system',
+                                     '11'='Diseases of the skin and subcutaneous tissue',
+                                     '12'='Diseases of the musculoskeletal system and connective tissue', 
+                                     '13'='Diseases of the genitourinary system',
+                                     '14'='Pregnancy, childbirth and the puerperium',
+                                     '15'='Certain conditions originating in the perinatal',
+                                     '16'='Congenital malformations, deformations and chromosomal abnormalities',
+                                     '17'='Symptoms, signs and abnormal clinical  findings',
+                                     '18'='Injury, poisoning and certain other consequences of external causes',
+                                     '19'='causes of morbidity and mortality',
+                                     '21'='Factors influencing health status and contact with health services',
+                                     '22'='patient follow-up',
+                                     '23'='medical consultation',
+                                     '24'='blood donation',
+                                     '25'='laboratory examination',
+                                     '26'='unjustified absence',
+                                     '27'='physiotherapy',
+                                     '28'='dental consultation')
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+abs_dataset$Seasons =recode(abs_dataset$Seasons,'1'='summer','2'='autumn','3'='winter','4'='spring')
+
+abs_dataset$Education =recode(abs_dataset$Education, '1'='highschool','2'='graduate','3'='postgraduate','4'='master&PhD')
+```
+
+
+
