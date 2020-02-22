@@ -22,6 +22,7 @@ library(dplyr)
 library(knitr)
 library(magrittr)
 library(lattice)
+library(skimr)
 ```
 
 #Introduction
@@ -43,16 +44,30 @@ data.frame(Variable = names(abs_training_df),
            Class = sapply(abs_training_df, typeof),
            First_values = sapply(abs_training_df, function(x) paste0(head(x),  collapse = ", ")),
            row.names = NULL) %>% kable()
-
 ```
 
 
 
-```{r cars}
+```{r Statistical Summary}
+stat_abs_training_df <- do.call(data.frame, 
+                list(mean = apply(abs_training_df, 2, mean),
+                sd = apply(abs_training_df, 2, sd),
+                median = apply(abs_training_df, 2, median),
+                min = apply(abs_training_df, 2, min),
+                max = apply(abs_training_df, 2, max),
+                n = apply(abs_training_df, 2, length)))
+stat_abs_training_df<-t(stat_abs_training_df)
+kable(stat_abs_training_df[,1:6])
+kable(stat_abs_training_df[,7:13])
+kable(stat_abs_training_df[,14:20])
+kable(stat_abs_training_df[,21:22])
 
 ```
 
-## Including Plots
+# View Data Distribution
+```{r}
+skim(abs_training_df)
+```
 
 You can also embed plots, for example:
 
