@@ -7,17 +7,18 @@ output:
   rmarkdown::html_document:
     code_folding: show
     df_print: paged
-    fig_caption: yes
+    fig_caption: true
     theme: lumen
     toc: yes
+    toc_depth: 4
+    number_sections: true
     toc_float: yes
-
 ---
-```{r setup, include=FALSE}
+```{r Setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r, message=FALSE, warning=FALSE, include=FALSE}
+```{r Packages Needed, message=FALSE, warning=FALSE, include=FALSE}
 library(prettydoc) #For rmd theme
 library(MASS)
 library(ISLR)
@@ -35,6 +36,9 @@ library(magrittr)
 library(lattice)
 library(skimr)
 library('binr')
+library(gridExtra)
+library(devtools)
+
 ```
 
 # Introduction
@@ -45,19 +49,19 @@ The main goal is to **predict whether or not an individual is going to have a lo
 
 ```{r Loading Training}
 
-abs_training_df<-read.csv("C:/Users/sandr/Desktop/Machine Learning II/ML Assignment/Absenteeism_at_work_classification/Absenteeism_at_work_classification_training.csv",sep = ";")
-ncol(abs_training_df)
+abs_trainset_df<-read.csv("C:/Users/sandr/Desktop/Machine Learning II/ML Assignment/Absenteeism_at_work_classification/Absenteeism_at_work_classification_training.csv",sep = ";")
+ncol(abs_trainset_df)
 
-abs_test_df = read.csv(file = file.path("C:/Users/sandr/Desktop/Machine Learning II/ML Assignment/Absenteeism_at_work_classification/Absenteeism_at_work_classification_test.csv"),  header = TRUE, dec = ".", sep = ";")
+abs_testset_df = read.csv(file = file.path("C:/Users/sandr/Desktop/Machine Learning II/ML Assignment/Absenteeism_at_work_classification/Absenteeism_at_work_classification_test.csv"),  header = TRUE, dec = ".", sep = ";")
 ```
 
 ## Variable Type
 ```{r Variables}
-data.frame(Variable = names(abs_training_df),
-           Type = sapply(abs_training_df, typeof),
-           Min=sapply(abs_training_df, min),
-           Max=sapply(abs_training_df, max),
-           First_values = sapply(abs_training_df, function(x) paste0(head(x),  collapse = ", ")),
+data.frame(Variable = names(abs_trainset_df),
+           Type = sapply(abs_trainset_df, typeof),
+           Min=sapply(abs_trainset_df, min),
+           Max=sapply(abs_trainset_df, max),
+           First_values = sapply(abs_trainset_df, function(x) paste0(head(x),  collapse = ", ")),
            row.names = NULL) %>% kable()
 ```
 
@@ -67,7 +71,7 @@ The dataframe contains **22** variables.The target variable is **Absenteeism**, 
 Lets look at the statistical summary and histogram of each variable. 
 
 ```{r Training Dataset Overview, echo=FALSE}
-skim(abs_training_df)
+skim(abs_trainset_df)
 ```
 
 # Data Cleaning and Preparation
@@ -79,8 +83,8 @@ We can see from the attribute information (https://archive.ics.uci.edu/ml/datase
 Before converting these these variables need to combine test dataset with train dataset, and apply the conversion on both. 
 
 ```{r Combine Dataset, echo=FALSE}
-abs_test_df$Absenteeism <- 0  #add taget variable Absenteeism into the test dataset
-abs_dataset <- rbind(abs_training_df, abs_test_df)
+abs_testset_df$Absenteeism <- 0  #add taget variable Absenteeism into the test dataset
+abs_dataset <- rbind(abs_trainset_df, abs_testset_df)
 str(abs_dataset) #check dataset
 ```
 We can now convert all the categorical variables to factors. 
@@ -258,9 +262,10 @@ horizontal = FALSE,
 notch = TRUE
 )
 ```
+
 ## Treating Outliers
 
-The initial 5 box plot shows that We have a few outliers in Transport expense, service time, age, and hit.targe. Additionally there are outliers detected in work Load, height and number of pets, in the second group of boxplots. 
+The initial 5 boxplots show that We have a few outliers in Transport expense, service time, age, and hit.targe. Additionally there are outliers detected in work Load, height and number of pets, in the second group of boxplots. 
 
 Refering back to the overview where we see the minimum and maximum value of these variables, we can establish that there is no error in these data points and are actual observations which are deviations from the range in our dataset.
 
@@ -274,11 +279,15 @@ In the case of the outliers detected in the **number of service time and age**, 
 
 For outliers detected in Height, we can keep this records as they are for now as we see that there are no outliers in BMI which combines weight and height (The formula for BMI is weight in kilograms divided by height in meters squared). Accordingly expect high correlation between these values and there is not need for our model to train on weight and height if it uses BMI. And so our model will not be taking into consideration these deviated values from height. 
 
-We have three outliers in number of pets owned. Eventhough it is not necessarly an error and employees can have as much as 5 to 8 pets we don't want our distribution to be affected by such values. At the time time we don't want to reduce the number of observations we have and thus the best option is to assign the median value to these three outliers. We will not consider having 4 pets as an outlier as it is not an extreme deviation. 
+We have three outliers in number of pets owned. Eventhough it is not necessarly an error and employees can have as much as 5 to 8 pets we don't want our distribution to be affected by such values. We want out model to only capture wether having a pet or not having a pet affects absentieseem and this further justified by the distribution of those who don't have pets and those which do.
 
 
-```{r Replacing Outlier - Number of Pets}
-abs_dataset[abs_dataset$Pet > 4,1]
+```{r OneHot Encode  - Number of Pets}
+abs_dataset$Pet_encoded<-abs_dataset$Pet
+abs_dataset$Pet_encoded[abs_dataset$Pet_encoded > 0] <- 1
+
+abs_dataset[5:15,c('Pet','Pet_encoded')]
+
 ```
 
 ## Advanced Factorization
@@ -328,30 +337,99 @@ abs_dataset[210:215,c('Transportation.expense','Transportation.expense_bin')]
   
 Distance from residence to work : Binned as "Close", "Far" and "Very Far" through bin generated by quantile distribution. 
 ```{r Binning Distance from Residence to Work}
-distance_bins<-bins.quantiles(abs_dataset$Distance.from.Residence.to.Work, 3, 3, verbose = FALSE)
+
+distance_bins<-bins.quantiles(abs_dataset$Distance.from.Residence.to.Work, 4, 4, verbose = FALSE)
 distance_bins$binc
-#[5, 24] [25, 41] [42, 52] we will use this range to create binned variable.
-abs_dataset$Distance.Resi.to.Work_bin <-.bincode(abs_dataset$Distance.from.Residence.to.Work, c(5, 25, 42,2000), FALSE, TRUE)
-abs_dataset$Distance.Resi.to.Work_bin <- recode(abs_dataset$Distance.Resi.to.Work_bin,`1`="Close",`2`="Far",`3`="Very Far")
+#[5, 16] [17, 26] [27, 50] [51, 52]  we will use this range to create binned variable.
+abs_dataset$Distance.Resi.to.Work_bin <-.bincode(abs_dataset$Distance.from.Residence.to.Work, c(5, 17, 27,51, 53), FALSE, TRUE)
+abs_dataset$Distance.Resi.to.Work_bin <- recode(abs_dataset$Distance.Resi.to.Work_bin,`1`="Close",`2`="Average Distance",`3`="Far",`4`="Very Far")
 abs_dataset[100:105,c('Distance.from.Residence.to.Work','Distance.Resi.to.Work_bin')] #viewing binned data
 
 ```
+## Normalization
+The variable daily average workload could be 
+Algorithms that work with distances tend to work better after normalization, but this doesn't guaranteer better performance so we will keep the original variable to check difference.
+
+```{r Normalizing Data, fig.width=9, fig.height=3}
+
+bar_wl_month<-ggplot(abs_dataset, aes(x = abs_dataset$Work.load.Average.day, y = abs_dataset$Month.of.absence), group = abs_dataset$Absenteeism, color = abs_dataset$Absenteeism) +
+geom_line()
+bar_wl_abs<-ggplot(abs_dataset, aes(x = abs_dataset$Absenteeism, y = abs_dataset$Work.load.Average.day, fill=Absenteeism)) +
+geom_bar(stat = "summary", fun.y= "mean")
+bar_wl_dow<-ggplot(abs_dataset, aes(x = abs_dataset$Day.of.the.week, y = abs_dataset$Work.load.Average.day, fill=Day.of.the.week)) +
+geom_bar(stat = "summary", fun.y= "mean")
+
+gridExtra::grid.arrange(bar_wl_abs, bar_wl_month, bar_wl_dow,ncol=3)
+
+```
+the plot above compares how work load relates to variables such as month of absence and what the average work load for those that were absent and were not. There seems to be no clear correlation as the average workload for those with long absentees and those with not is similar. And there is no trend in month of absense and average workload 
+
+
+
+## Exploring Other Factor Variables
+
+```{r}
+bar1 = ggplot(data = abs_dataset, aes(x = ID)) + geom_bar() + ggtitle("Count of ID") + theme_bw()
+bar2 = ggplot(data = abs_dataset, aes(x = Reason.for.absence)) + geom_bar() + 
+  ggtitle("Count of Reason for absence") + theme_bw()
+bar3 = ggplot(data = abs_dataset, aes(x = Month.of.absence)) + geom_bar() + ggtitle("Count of Month") + theme_bw()
+bar4 = ggplot(data = abs_dataset, aes(x = Disciplinary.failure)) + geom_bar() + 
+  ggtitle("Count of Disciplinary failure") + theme_bw()
+bar5 = ggplot(data = abs_dataset, aes(x = Education)) + geom_bar() + ggtitle("Count of Education") + theme_bw()
+bar6 = ggplot(data = abs_dataset, aes(x = Number_Children)) + geom_bar() + ggtitle("Number of Children") + theme_bw()
+bar7 = ggplot(data = abs_dataset, aes(x = Social.smoker)) + geom_bar() + 
+  ggtitle("Count of Social smoker") + theme_bw()
+
+gridExtra::grid.arrange(bar1,bar2,bar3,bar4,ncol=2)
+gridExtra::grid.arrange(bar5,bar6,bar7,ncol=2)
+```
+
+
+
+## Correlation Between Exlanatory Variables
+
+```{r Correlation Test - BMI with Weight and Height}
+cor.test(abs_dataset$Height, abs_dataset$Body.mass.index, method="pearson")
+cor.test(abs_dataset$Weight, abs_dataset$Body.mass.index, method="pearson")
+```
+The correlation test above using the Pearson method for both **Weight** and **Height** with **Body.mass.index** as expected resulted in values very less than the significance level alpha = 0.05.
+
+```{r Correlation Test - Transport Expense and Distance}
+cor.test(abs_dataset$Transportation.expense, abs_dataset$Distance.from.Residence.to.Work, method="pearson")
+```
 
 ## Continued Data Clearning
+
 ```{r More Data Cleaning}
+colnames(abs_dataset)[which(names(abs_dataset) == "Son")] <- "Number_Children"
 #Renaming "Son" Attribute to more accurate name
 
-colnames(abs_dataset)[which(names(abs_dataset) == "Son")] <- "Number_Children"
+data.frame(Variable = names(abs_dataset),
+           Class = sapply(abs_dataset, class),
+           First_values = sapply(abs_dataset, function(x) paste0(head(x),  collapse = ", ")),
+           row.names = NULL) %>% kable()
+```
+
+
+
+## Train and Test Split
+```{r Split Train and Test - Inital}
+training <- abs_dataset[1:593,]  
+test <- abs_dataset[594:740,]
+
+```
+
+# Feature Engineering
+
+
+
+## Baseline Model
+We will fit a general linear model that will be used to compare our model before and after data cleaning and feature filtering.
+
+```{r}
 
 ```
 
 
-## Train and Test Split
 
-
-
-
-#Feature Engineering
-
-This is the section to give free rein to your imagination and create all the features that might improve the final result. Do not worry if you add some "uninformative" feature because it will be removed by the later feature selection process.
 
