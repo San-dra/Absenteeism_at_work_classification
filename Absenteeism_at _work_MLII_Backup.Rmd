@@ -41,6 +41,7 @@ library('binr')
 library(gridExtra)
 library(devtools)
 library(party)
+library(randomForest)
 
 ```
 
@@ -415,7 +416,7 @@ We will not be using some attributes for modeling such as the obvious ones as ID
 We will keep the other variables we have binned and converted to binary variable, to run 
 
 ```{r Removing Attribues}
-abs_dataset$ID<- NULL
+
 abs_dataset$ID.Worker<- NULL
 abs_dataset$Weight<- NULL
 abs_dataset$Height<- NULL
@@ -463,7 +464,7 @@ validation_cleaned<- training1[-train_clean., ]
 We will fit a general linear model that will be used to compare our model before and after data cleaning and feature filtering.
 
 
-```{r Initial Regression model, fig.width=9, fig.height=20}
+```{r Initial Regression model, fig.width=9, fig.height=20 , Warning = FALSE}
 library(caret)
 train_initial$Absenteeism <- factor(train_initial$Absenteeism, levels = c("0", "1"), labels = c("Not Absent", "Absent"))
 
@@ -489,6 +490,12 @@ validation_initial$Absenteeism <- factor(validation_initial$Absenteeism, levels 
 
 ```
 
+## Baseline Model
+We will fit a general linear model that will be used to compare our model before and after data cleaning and feature filtering.
+
+
+
+
 ```{r Baseline Model Predition, Confusion Matrix and Important Features}
 # Predict
 initial.lm.mod.pred <- predict(initial.lm.mod, validation_initial[,-which(names(validation_initial) == "Absenteeism")])
@@ -507,7 +514,7 @@ As a result, we will try in this section to find and select variables that have 
 ```{r Chi Square Variable Importance}
 library(FSelector)
 
-weights<- data.frame(chi.squared(Absenteeism~., train_cleaned)) # Chi-squared computation
+weights<- data.frame(chi.squared(Absenteeism~., train_cleaned[,-which(names(train_cleaned) == "ID")])) # Chi-squared computation
 weights$feature <- rownames(weights)
 weights[order(weights$attr_importance, decreasing = TRUE),] # Order the features by their weights
 chi_squared_features <- weights$feature[weights$attr_importance > 0.1]
@@ -527,7 +534,7 @@ chi_squared.lm.mod <- train(Absenteeism ~ ., data = train_cleaned[append(chi_squ
                trControl=train_control_config)
 
 
-chi_squared.lm.mod.pred <- predict(chi_squared.lm.mod, validation_cleaned[,-which(names(validation_cleaned) == "Absenteeism")])
+chi_squared.lm.mod.pred <- predict(chi_squared.lm.mod, validation_cleaned[,-!names(validation_cleaned) %in% c("Absenteeism", "ID")])
 
 cm <- confusionMatrix(chi_squared.lm.mod.pred, validation_cleaned$Absenteeism, positive = "0")
 print(cm)
@@ -539,7 +546,6 @@ From the Chi- square variable importance we can see that the variable we binned 
 #### Chi-Square Test Round 2
 
 Under this section we are going to remove the variable mentioned above from the cleaned in both the train and test. Then Run the validation split again.
-We will also remove all atrributes that have zero attribute importance. 
 
 
 ##### Round 2 - Train and Test Update
@@ -548,14 +554,7 @@ abs_dataset$Transportation.expense<-NULL
 abs_dataset$Distance.from.Residence.to.Work<-NULL
 abs_dataset$Service.time<- NULL
 
-#attributes with zero attribute importance
-abs_dataset$Age<-NULL
-abs_dataset$Work.load.Average.day<-NULL
-abs_dataset$Number_Children<-NULL
-abs_dataset$Hit.target<-NULL
-abs_dataset$Pet<-NULL
-abs_dataset$Pet_encoded<-NULL
-abs_dataset$Body.mass.index<-NULL
+
 
 
 
@@ -577,7 +576,7 @@ Now we will run the Chi-Square Test again with new Training and validation datas
 ```{r Chi Square Variable Importance}
 library(FSelector)
 
-weights<- data.frame(chi.squared(Absenteeism~., train_cleaned2)) # Chi-squared computation
+weights<- data.frame(chi.squared(Absenteeism~., train_cleaned2[,names(train_cleaned2) != "ID"])) # Chi-squared computation
 weights$feature <- rownames(weights)
 weights[order(weights$attr_importance, decreasing = TRUE),] # Order the features by their weights
 chi_squared_features <- weights$feature[weights$attr_importance > 0.1]
@@ -592,7 +591,7 @@ chi_squared.lm.mod <- train(Absenteeism ~ ., data = train_cleaned2[append(chi_sq
                trControl=train_control_config)
 
 
-chi_squared.lm.mod.pred <- predict(chi_squared.lm.mod, validation_cleaned2[,-which(names(validation_cleaned2) == "Absenteeism")])
+chi_squared.lm.mod.pred <- predict(chi_squared.lm.mod, validation_cleaned2[,!names(validation_cleaned2) %in% c("Absenteeism", "ID")])
 
 cm <- confusionMatrix(chi_squared.lm.mod.pred, validation_cleaned2$Absenteeism, positive = "0")
 print(cm)
@@ -604,7 +603,7 @@ plot(varImp(chi_squared.lm.mod),top= 20, main = "20 most important features")
 
 We will try now to use another feature selection method and see if it has improved accuracy.
 ```{r Information Gain}
-weights<- data.frame(information.gain(Absenteeism~., train_cleaned))
+weights<- data.frame(information.gain(Absenteeism~., train_cleaned[,names(train_cleaned) != "ID"]))
 weights$feature <- rownames(weights)
 weights[order(weights$attr_importance, decreasing = TRUE),]
 information_gain_features <- weights$feature[weights$attr_importance > 0.015]
@@ -615,7 +614,7 @@ information_gain_features <- weights$feature[weights$attr_importance > 0.015]
 Let's experiment now with Information Gain Selection. Making use of the `FSelector` package (or other you choice), rank the features according to their Information Gain and filter those which you consider, according to the IG value.
 
 ```{r Information Gain Variable Importance}
-weights<- data.frame(information.gain(Absenteeism~., train_cleaned))
+weights<- data.frame(information.gain(Absenteeism~., train_cleaned[,names(train_cleaned) != "ID"]))
 weights$feature <- rownames(weights)
 weights[order(weights$attr_importance, decreasing = TRUE),]
 information_gain_features <- weights$feature[weights$attr_importance > 0.015]
@@ -648,7 +647,7 @@ There is no improvment in accuracy of this feature selector than the chi-squared
 Let's experiment now with Information Gain Selection. Making use of the `FSelector` package (or other you choice), rank the features according to their Information Gain and filter those which you consider, according to the IG value.
 
 ```{r Information Gain Variable Importance}
-weights<- data.frame(information.gain(Absenteeism~., train_cleaned2))
+weights<- data.frame(information.gain(Absenteeism~., train_cleaned2[,names(train_cleaned2) != "ID"]))
 weights$feature <- rownames(weights)
 weights[order(weights$attr_importance, decreasing = TRUE),]
 information_gain_features <- weights$feature[weights$attr_importance > 0.015]
@@ -684,7 +683,13 @@ As Chi-Square feature selector performed relatively better with
 ## Chi Vs Info
 chi_training <- train_cleaned[append(chi_squared_features, "Absenteeism")]
 chi_validation <- validation_cleaned[append(chi_squared_features, "Absenteeism")]
+
+
+chi_training2 <- train_cleaned2[append(chi_squared_features, "Absenteeism")]
+chi_validation2 <- validation_cleaned2[append(chi_squared_features, "Absenteeism")]
+
 ```
+
 
 
 ## Wrapper Method 
@@ -707,6 +712,21 @@ levels(validation_cleaned$Absenteeism)[levels(validation_cleaned$Absenteeism)=="
 levels(validation_cleaned$Absenteeism)[levels(validation_cleaned$Absenteeism)=="1"]<- "Absent"
 
 
+
+levels(train_cleaned2$Absenteeism)[levels(train_cleaned2$Absenteeism)=="0"]<- "Not_Absent"
+levels(train_cleaned2$Absenteeism)[levels(train_cleaned$Absenteeism)=="1"]<- "Absent"
+
+levels(validation_cleaned2$Absenteeism)[levels(validation_cleaned2$Absenteeism)=="0"]<- "Not_Absent"
+levels(validation_cleaned2$Absenteeism)[levels(validation_cleaned2$Absenteeism)=="1"]<- "Absent"
+
+
+
+levels(chi_training$Absenteeism)[levels(chi_training$Absenteeism)=="0"]<- "Not_Absent"
+levels(chi_training$Absenteeism)[levels(chi_training$Absenteeism)=="1"]<- "Absent"
+
+levels(chi_validation$Absenteeism)[levels(chi_validation$Absenteeism)=="0"]<- "Not_Absent"
+levels(chi_validation$Absenteeism)[levels(chi_validation$Absenteeism)=="1"]<- "Absent"
+
 ```
 
 
@@ -714,7 +734,7 @@ levels(validation_cleaned$Absenteeism)[levels(validation_cleaned$Absenteeism)=="
 
 train_control_config_4_stepwise <- trainControl(method = "none", classProbs = TRUE)
 
-backward.lm.mod <- train(Absenteeism ~ ., data = train_cleaned, 
+backward.lm.mod <- train(Absenteeism ~ ., data = train_cleaned[,names(train_cleaned) != "ID"], 
                method = "glmStepAIC", 
                direction = "backward",
                trace = FALSE,
@@ -729,6 +749,7 @@ paste("Features Selected" ,backward.lm.mod$finalModel$formula[3])
 ```
 
 Evaluate the selected model
+
 ```{r Backward Evaluation}
 backward.lm.mod.pred <- predict(backward.lm.mod, validation_cleaned[,-which(names(validation_cleaned) == "Absenteeism")])
 
@@ -736,11 +757,36 @@ cm <- confusionMatrix(backward.lm.mod.pred, validation_cleaned$Absenteeism, posi
 print(cm)
 ```
 
+This model didn't improve the performance of our lm.mod model. Below we will try this algorithm on the just the selected attributes of chi-square instead of the whole train data set and see if there is any improvment. 
+
+```{r Backward Stepwise on Chi-square selected features, Warning= FALSE}
+
+train_control_config_4_stepwise <- trainControl(method = "none", classProbs = TRUE)
+
+backward.lm.mod <- train(Absenteeism ~ ., data = chi_training[,names(chi_training) != "ID"], 
+               method = "glmStepAIC", 
+               direction = "backward",
+               trace = FALSE,
+               metric = "Accuracy",
+               trControl=train_control_config_4_stepwise)
+paste("Features Selected" ,backward.lm.mod$finalModel$formula[3])
+
+
+```
+
+```{r Backward Evaluation Chi-square attributes}
+backward.lm.mod.pred <- predict(backward.lm.mod, chi_validation[,-which(names(chi_validation) == "Absenteeism")])
+
+cm <- confusionMatrix(backward.lm.mod.pred, chi_validation$Absenteeism, positive = "Not_Absent")
+print(cm)
+```
+
+No improved accuracy with the backward stepwise. 
 
 
 #### Forward Stepwise
 
-Getting errors with unexpected value. Suspecting that this error is coming from variables that have numeric.
+Getting errors with unexpected value. Suspecting that this error is coming from variables that have numeric values. 
 
 ```{r Forward Stepwise}
 
@@ -756,13 +802,10 @@ Getting errors with unexpected value. Suspecting that this error is coming from 
 
 ```
 
-Printout only the selected features.
 ```{r Selected Forward Features}
 #paste("Features Selected" ,forward.lm.mod$finalModel$formula[3])
 
 ```
-
-Compute the new Accuracy
 
 ```{r Forward Evaluation}
 
@@ -772,18 +815,17 @@ Compute the new Accuracy
 #print(cm)
 ```
 
-This process is not able to further refine the feature set (more than the refinement already performed by the feature selection process). So, we will take the IG-cleaned training for the following step.
-
-## Embedded
+This process is not able to further improve our feautre. So, we will take the chi_training.
 
 
 ### Ridge 
-Select the best lambda form the CV model, use it to predict the target value of the test set and evaluate the results
+Select the best lambda form the CV model, use it to predict the target value of the test set and evaluate the results.
+We decided to use the second chi-square features as they performed slightly better. This is where we used the second set of train and test dataset. 
 
-```{r Ridge Regression}
+```{r Ridge Regression I}
 lambdas <- 10^seq(-2, 1, by = .1)
 
-ridge.mod <- train(Absenteeism ~ ., data = chi_training, 
+ridge.mod <- train(Absenteeism ~ ., data = chi_training2[,names(chi_training2) != "ID"], 
                method = "glmnet", 
                metric = "Accuracy",
                tuneGrid = expand.grid(alpha = 0, lambda = lambdas))
@@ -794,37 +836,24 @@ plot(ridge.mod$finalModel, xvar = "lambda")
 
 
 
-```{r Ridge Prediction}
+```{r Ridge Prediction I}
 
 bestlam <- ridge.mod$bestTune['lambda']
 paste("Best Lambda value from CV=", bestlam)
-ridge.pred= predict(ridge.mod, s=bestlam, chi_validation[,-which(names(chi_validation) == "Absenteeism")])
-cm <- confusionMatrix(ridge.pred, chi_validation$Absenteeism, positive = "Not_Absent")
+ridge.pred= predict(ridge.mod, s=bestlam, chi_validation2[,-which(names(chi_validation2) == "Absenteeism")])
+cm <- confusionMatrix(ridge.pred, chi_validation2$Absenteeism, positive = "0")
 print(cm)
 ```
+This has slightly improved our accuracy.
 
-Ridge Regression offers similar results than unregularized models. If you remember from class, Ridge Regression does not remove any feature, it just forces the coefficients to take small values. 
-
-Rank the variables according to the importance attributed by the model to see this aspect.
-
-```{r Ridge - Variable Importance}
-
-# Print, plot variable importance
-imp <- varImp(ridge.mod$finalModel)
-names <- rownames(imp)[order(imp$Overall, decreasing=TRUE)]
-importance <- imp[names,]
-
-data.frame(row.names = names, importance)
-```
 
 ### Lasso Regresion
-Let's see if Lasso (which actually removes features by making their coefficients equal to 0) improves the unregularized model.
+Lasso remove unimportant features by setting their coefficient to zero and at the end we will check the accuracy of this model on validation dataset and the list of variable that were given coefficients higher than zero.
 
-Using again the <a href="https://cran.r-project.org/web/packages/glmnet/index.html">`glmnet`</a> library and `caret`, fit a Lasso Regression (take a look to the alpha parameter) using the grid of lambda values provided.
 
 ```{r Lasso Regression}
 
-lasso.mod <- train(Absenteeism ~ ., data = chi_training, 
+lasso.mod <- train(Absenteeism ~ ., data = chi_training2[, names(chi_training2) != "ID"], 
                method = "glmnet", 
                metric = "Accuracy",
                tuneGrid = expand.grid(alpha = 1, lambda = lambdas))
@@ -839,12 +868,12 @@ plot(lasso.mod$finalModel, xvar="lambda")
 ```{r Lasso Prediction}
 bestlam <- lasso.mod$bestTune['lambda']
 paste("Best Lambda value from CV=", bestlam)
-lasso.pred= predict(lasso.mod, s=bestlam, chi_validation[,-which(names(chi_validation) == "Absenteeism")])
-cm <- confusionMatrix(lasso.pred, chi_validation$Absenteeism, positive = "Not_Absent")
+lasso.pred= predict(lasso.mod, s=bestlam, chi_validation2[,-which(names(chi_validation2) == "Absenteeism")])
+cm <- confusionMatrix(lasso.pred, chi_validation2$Absenteeism, positive = "0")
 print(cm)
 ```
 
-Lasso is able to improve the results achieved by the Information Gain selection by focusing only on a small subset of representative features (nullifying the rest of the coefficients). 
+Lasso is able to improve the results achieved by the second chi-square selection by focusing only on a small subset of representative features by removing the effect of less representative features. 
 
 Take a look to the features selected by the lasso model (only those with importance larger than 0)
 ```{r Lasso - Variable Importance}
@@ -857,8 +886,39 @@ importance <- imp[names,]
 filter(data.frame(names, importance), importance > 0.0)
 ```
 
+As we can see that, both the accuracy and the value of R-square for our model has been increased. Therefore, lasso model and ridge are predicting better than the baseline linear model.
+
+In Lasso those who will not be absent from work for long days are mis-categorized as they would (Sensitivity : 0.8387, Specificity : 0.8200) compared to Ridge where specificy is low (Sensitivity : 0.8495, Specificity : 0.8000). In other words, there is a slightly higher true negative rate or Specificity. 
+For our objective, the main aim is to predict "Absense" thus we need more True Negative accuracy. 
+
+## Final Model - Lasso Regression
 
 
+```{r Lasso Regression Full Dataset Train}
+full_traindataset<-rbind(chi_training2,chi_validation2)
+
+lasso.mod_final <- train(Absenteeism ~ ., data = full_traindataset[, names(full_traindataset) != "ID"], 
+               method = "glmnet", 
+               metric = "Accuracy",
+               tuneGrid = expand.grid(alpha = 1, lambda = lambdas))
+```
+
+
+
+
+```{r Lasso Prediction Actual Test}
+bestlam <- lasso.mod$bestTune['lambda']
+paste("Best Lambda value from CV=", bestlam)
+lasso.pred_test2= predict(lasso.mod_final, s=bestlam, test2[,-which(names(test2) == "Absenteeism")])
+test2$Absenteeism<-lasso.pred_test2
+View(test2[, names(test2) %in% c("Absenteeism", "ID")])
+lasso.pred_test2
+
+predicted_data<-test2[, names(test2) %in% c("Absenteeism", "ID")]
+write.csv(predicted_data, file = "predictions_lass.csv", row.names = TRUE,  col.names=TRUE, dec = ".", sep = ";") 
+
+
+```
 
 
 
